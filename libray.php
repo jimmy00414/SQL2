@@ -1,5 +1,17 @@
 <?php
 
+echo sum(10, 25); // 呼叫 sum 函式並顯示結果
+
+function sum(...$args)
+{
+    $sum = 0; // 初始化總和變數
+    foreach ($args as $arg) {
+        $sum += $arg; // 將每個參數加到總和中
+    }
+    return $sum; // 返回計算後的總和
+}
+
+
 /**
  * 在頁面上快速顯示陣列內容
  * direct dump

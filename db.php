@@ -1,87 +1,141 @@
 <?php
 
-$dsn = "mysql:host=localhost;charset=utf8;dbname=school"; // 設置資料庫連接字串，指定資料庫為 'school'，使用 utf8 編碼。
-$pdo = new PDO($dsn, 'root', ''); // 使用 PDO 創建到 MySQL 資料庫的連接，使用者為 'root'，密碼為空。
+// 建立資料庫連接字串
+$dsn = "mysql:host=localhost;charset=utf8;dbname=school";
 
-function all($table, $where) // 定義函式 'all'，用於查詢指定條件的所有記錄。
+// 通過PDO建立資料庫連接
+$pdo = new PDO($dsn, 'root', '');
+
+// 取得指定條件下的所有資料
+function all($table, $where)
 {
-    global $pdo; // 使用全局變量 $pdo 來進行資料庫操作。
-    $sql = "SELECT * FROM `{$table}` {$where}"; // 構建 SQL 查詢語句，從指定表中選擇所有符合條件的記錄。
-    $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC); // 執行查詢並以關聯數組形式獲取所有結果。
+    global $pdo;
+    // 準備 SQL 查詢字串，使用佔位符避免 SQL 注入攻擊
+    $sql = "SELECT * FROM `{$table}` {$where}";
+    // 使用 PDO 物件執行 SQL 查詢，並將結果以關聯陣列的形式返回
+    $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-    return $rows; // 返回查詢結果。
+    return $rows;
 }
 
-
-// 簡易一
-// function find($id)    // 定義函式 'find'，用於查詢指定 id 的記錄。
-// {
-//     global $pdo;     // 使用全局變量 $pdo 來進行資料庫操作。
-//     $sql = "SELECT * FROM `dept` WHERE `id`='{$id}'";    // 構建 SQL 查詢語句，從 'dept' 表中選擇指定 id 的記錄。
-//     $row = $pdo->query($sql)->fetch(PDO::FETCH_ASSOC);   // 執行查詢並以關聯數組形式獲取單一結果。
-
-//     return $row;   // 返回查詢結果。
-// }
-
-
-// 方法二
-// function find($table, $arg)
-// {
-//     global $pdo;           // 使用全局變量 $pdo 來進行資料庫操作。
-
-//     if (is_array($arg)) {              // 如果 $arg 是陣列，則進行複合條件查詢。
-//         foreach ($arg as $key => $value) {         // 遍歷 $arg 陣列，將每個鍵值對轉換為 SQL 條件。
-//             $tmp[] = "`$key`='{$value}'";        // 將鍵和值轉換為 `key`='value' 的形式，並存入 $tmp 陣列中。
-//         }
-
-//         $sql = "SELECT * FROM `{$table}` WHERE " . join(" && ", $tmp);        // 將 $tmp 陣列中的條件用 " && " 連接，生成完整的 SQL 查詢語句。
-//     } else { // 如果 $arg 不是陣列，則進行單條件查詢。
-//         $sql = "SELECT * FROM `{$table}` WHERE `id`='{$arg}'";       // 生成查詢語句，查詢 id 等於 $arg 的記錄。
-//     }
-
-//     //echo $sql; // 可以解除註解以輸出生成的 SQL 查詢語句，用於調試。
-
-//     $row = $pdo->query($sql)->fetch(PDO::FETCH_ASSOC);            // 執行查詢並以關聯數組形式獲取單一結果。
-
-//     return $row;         // 返回查詢結果。
-// }
-
-
-方法三
-
+// 根據指定條件尋找單一資料
 function find($table, $arg)
 {
-    global $pdo; // 使用全局變量 $pdo 來進行資料庫操作
+    global $pdo;
 
-    $sql = "SELECT * FROM `{$table}` WHERE ";       // 開始構建 SQL 查詢語句，選取指定表中的所有字段並開始 WHERE 子句
+    $sql = "SELECT * FROM `{$table}` WHERE ";
 
-    if (is_array($arg)) { // 如果 $arg 是陣列
-        foreach ($arg as $key => $value) {        // 遍歷 $arg 陣列中的每個鍵值對
-            $tmp[] = "`$key`='{$value}'";        // 將每個鍵值對轉換為 `key`='value' 的 SQL 條件，並存入 $tmp 陣列中
-        }
-
-        $sql .= join(" && ", $tmp);         // 將 $tmp 陣列中的條件用 " && " 連接，並附加到 SQL 語句後面
-    } else { // 如果 $arg 不是陣列
-        $sql .= " `id`='{$arg}'";           // 構建查詢語句，查詢 id 等於 $arg 的記錄，並附加到 SQL 語句後面
+    if (is_array($arg)) {
+        // 如果條件是陣列，轉換成 SQL 條件語句
+        $tmp = array2sql($arg);
+        // 將多個條件用 AND 連接起來
+        $sql .= join(" && ", $tmp);
+    } else {
+        // 如果條件是單一值（通常是 ID），直接使用 WHERE 條件
+        $sql .= " `id`='{$arg}'";
     }
 
-    //echo $sql; // 可以解除註解以輸出生成的 SQL 查詢語句，用於調試
+    // 執行 SQL 查詢並返回第一筆結果（單一資料）
+    $row = $pdo->query($sql)->fetch(PDO::FETCH_ASSOC);
 
-    $row = $pdo->query($sql)->fetch(PDO::FETCH_ASSOC);    // 執行查詢並以關聯數組形式獲取單一結果
-
-    return $row;    // 返回查詢結果
+    return $row;
 }
 
-
-/**
- * 在頁面上快速顯示陣列內容
- * direct dump
-
- * @param $array 輸入的參數需為陣列
- */
-function dd($array) // 定義函式 'dd'，用於格式化輸出陣列內容，通常用於調試。
+// 儲存或更新資料到資料庫
+function save($table, $array)
 {
-    echo "<pre>"; // 開啟 HTML 預格式化文本標籤。
-    print_r($array); // 輸出陣列內容。
-    echo "</pre>"; // 關閉 HTML 預格式化文本標籤。
+
+    if (isset($array['id'])) {
+        // 如果資料中有 ID，表示要更新既有資料
+        update($table, $array, $array['id']);
+    } else {
+        // 如果資料中沒有 ID，表示要插入新資料
+        insert($table, $array);
+    }
+}
+
+// 更新資料庫中的資料
+function update($table, $cols, $arg)
+{
+    global $pdo;
+
+    $sql = "UPDATE `{$table}` SET ";
+
+    $tmp = array2sql($cols);
+
+    $sql .= join(",", $tmp);
+
+    if (is_array($arg)) {
+        // 如果條件是陣列，轉換成 SQL 條件語句
+        $tt = array2sql($arg);
+        // 將多個條件用 AND 連接起來
+        $sql .= " WHERE " . join(" && ", $tt);
+    } else {
+        // 如果條件是單一值（通常是 ID），直接使用 WHERE 條件
+        $sql .= " WHERE `id`='{$arg}'";
+    }
+
+    // 執行 SQL 更新操作並返回受影響的行數
+    return $pdo->exec($sql);
+}
+
+// 插入資料到資料庫
+function insert($table, $cols)
+{
+    global $pdo;
+
+    $sql = "INSERT INTO `{$table}` ";
+
+    $sql .= "(`" . join("`,`", array_keys($cols)) . "`)";
+
+    $sql .= " VALUES('" . join("','", $cols) . "')";
+
+    // 執行 SQL 插入操作並返回受影響的行數
+    return $pdo->exec($sql);
+}
+
+// 刪除資料庫中的資料
+function del($table, $arg)
+{
+    global $pdo;
+
+    $sql = "DELETE FROM `{$table}` WHERE ";
+
+    if (is_array($arg)) {
+        // 如果條件是陣列，轉換成 SQL 條件語句
+        $tmp = array2sql($arg);
+        // 將多個條件用 AND 連接起來
+        $sql .= join(" && ", $tmp);
+    } else {
+        // 如果條件是單一值（通常是 ID），直接使用 WHERE 條件
+        $sql .= " `id`='{$arg}'";
+    }
+
+    // 執行 SQL 刪除操作並返回受影響的行數
+    return $pdo->exec($sql);
+}
+
+// 將陣列轉換成 SQL 條件語句
+function array2sql($array)
+{
+    foreach ($array as $key => $value) {
+        $tmp[] = "`$key`='$value'";
+    }
+
+    return $tmp;
+}
+
+// 執行任意 SQL 查詢並返回結果
+function q($sql)
+{
+    global $pdo;
+    return $pdo->query($sql)->fetchAll();
+}
+
+// 在網頁上顯示陣列內容（用於測試）
+function dd($array)
+{
+    echo "<pre>";
+    print_r($array);
+    echo "</pre>";
 }
